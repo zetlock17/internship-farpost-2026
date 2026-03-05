@@ -1,42 +1,38 @@
 import { useState } from 'react';
-import CitySelector from './components/CitySelector';
-
-const CITIES = ['Спасск-Дальний', 'Спасский район', 'Владивосток', 'Находка'];
+import CityPickerModal, { type SelectedCity } from './components/CityPickerModal';
 
 function App() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pickedCity, setPickedCity] = useState<SelectedCity | null>(null);
+
+  const handleCitySelect = (city: SelectedCity) => {
+    setPickedCity(city);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-200 flex items-center justify-center p-8">
-      <div className="flex gap-16">
-        <div className="flex flex-col gap-2">
-          <p className="text-center font-bold text-sm mb-2 text-gray-700">MOBILE</p>
-          {CITIES.map((city) => (
-            <CitySelector
-              key={city}
-              cityName={city}
-              showFirstLetter={false}
-              selected={selected === city}
-              variant="mobile"
-              onClick={() => setSelected(city === selected ? null : city)}
-            />
-          ))}
+    <div className="min-h-screen flex items-center justify-center">
+
+        <div className="flex items-center gap-7.75">
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="px-3 py-2 rounded-sm bg-[#FFF2E8] text-[#F66303] text-[16px] font-normal hover:bg-[#FFE4B5] transition-colors gap-1 w-38.5"
+          >
+            Выбрать город
+          </button>
+          <span className="text-sm text-[#1E1E1E]">
+            {pickedCity
+              ? `${pickedCity.cityName}, ${pickedCity.regionName}`
+              : 'Город не выбран'}
+          </span>
         </div>
 
-        <div className="flex flex-col gap-2 w-72">
-          <p className="text-center font-bold text-sm mb-2 text-gray-700">DESKTOP</p>
-          {CITIES.map((city) => (
-            <CitySelector
-              key={city}
-              cityName={city}
-              showFirstLetter={false}
-              selected={selected === city}
-              variant="desktop"
-              onClick={() => setSelected(city === selected ? null : city)}
-            />
-          ))}
-        </div>
-      </div>
+        {modalOpen && (
+          <CityPickerModal
+            onSelect={handleCitySelect}
+            onClose={() => setModalOpen(false)}
+          />
+        )}
     </div>
   );
 }
