@@ -33,6 +33,7 @@ export interface CitySelectorProps {
     regionName?: string;
     showFirstLetter?: boolean;
     selected?: boolean;
+    bold?: boolean;
     variant?: CitySelectorVariant;
     displayMode?: CitySelectorDisplayMode;
     onClick?: () => void;
@@ -61,6 +62,7 @@ const CitySelector = memo(function CitySelector({
     regionName,
     showFirstLetter = false,
     selected = false,
+    bold = false,
     variant = 'auto',
     displayMode = 'default',
     onClick,
@@ -92,7 +94,8 @@ const CitySelector = memo(function CitySelector({
             type="button"
             onClick={onClick}
             className={cn(
-                'group flex items-center justify-between gap-3 cursor-pointer text-[16px] font-bold',
+                'group flex items-center justify-between gap-3 cursor-pointer text-[16px]',
+                bold ? 'font-bold' : 'font-normal',
                 'transition-colors duration-150 outline-none',
                 resolvedIsMobile ? 'p-3' : 'px-3 py-4',
                 isSearchResult || isAllAddonsVisible ? searchResultShapeClasses : baseShapeClasses,
@@ -101,7 +104,10 @@ const CitySelector = memo(function CitySelector({
             )}
             aria-pressed={selected}
         >
-            <div className="w-4 h-9.5 self-start -mt-0.5">{showLetter && <LetterBadge letter={firstLetter} />}</div>
+            <div className={cn(
+                'w-4 shrink-0',
+                isSearchResult || isAllAddonsVisible ? 'h-9.5 self-start -mt-0.5' : 'self-center',
+            )}>{showLetter && <LetterBadge letter={firstLetter} />}</div>
 
             <span className="flex items-center gap-2 min-w-0 flex-1">
                 {isSearchResult || isAllAddonsVisible ? (

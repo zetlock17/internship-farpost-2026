@@ -1,11 +1,31 @@
 import { useState } from 'react';
 import CityPickerModal, { type SelectedCity } from './components/CityPickerModal';
 
+const COOKIE_KEY = 'selected_city';
+
+function getCityFromCookie(): SelectedCity | null {
+  const match = document.cookie.split('; ').find((row) => row.startsWith(COOKIE_KEY + '='));
+  if (!match) return null;
+  try {
+    return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+  } catch {
+    return null;
+  }
+}
+
+function saveCityToCookie(city: SelectedCity) {
+  const value = encodeURIComponent(JSON.stringify(city));
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1);
+  document.cookie = `${COOKIE_KEY}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+}
+
 function App() {
   const [modalOpen, setModalOpen] = useState(false);
-  const [pickedCity, setPickedCity] = useState<SelectedCity | null>(null);
+  const [pickedCity, setPickedCity] = useState<SelectedCity | null>(getCityFromCookie);
 
   const handleCitySelect = (city: SelectedCity) => {
+    saveCityToCookie(city);
     setPickedCity(city);
   };
 

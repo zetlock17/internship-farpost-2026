@@ -1,6 +1,11 @@
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import geoData from '../data/geo.json';
 import CitySelector from './CitySelector';
+import searchIconSrc from '../assets/search.svg';
+import arrowLeftIconSrc from '../assets/arrowCountry.svg';
+import arrowRightIconSrc from '../assets/arrow.svg';
+import crossIconSrc from '../assets/cross.svg';
+import searchBGSrc from '../assets/searchBG.svg';
 
 interface GeoNode {
     id: number;
@@ -29,6 +34,7 @@ const otherCountries = allCountries.filter((c) => c.name !== 'Россия');
 interface FlatCity {
     id: number;
     name: string;
+    count: number;
     regionName: string;
     districtName: string;
     countryName: string;
@@ -46,6 +52,7 @@ function buildFlatList(): FlatCity[] {
                                 result.push({
                                     id: city.id,
                                     name: city.name,
+                                    count: city.count ?? 0,
                                     regionName: region.name,
                                     districtName: district.name,
                                     countryName: country.name,
@@ -79,25 +86,6 @@ function topCities(cities: GeoNode[], n = 3): GeoNode[] {
 const cn = (...classes: Array<string | false | null | undefined>) =>
     classes.filter(Boolean).join(' ');
 
-const SearchIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <circle cx="7" cy="7" r="5.5" stroke="#999" strokeWidth="1.4" />
-        <path d="M11 11l3 3" stroke="#999" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-);
-
-const ArrowLeftIcon = () => (
-    <svg width="8" height="13" viewBox="0 0 8 13" fill="none" aria-hidden="true">
-        <path d="M7 1L1.5 6.5L7 12" stroke="#0052C2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-const ArrowRightIcon = () => (
-    <svg width="8" height="13" viewBox="0 0 8 13" fill="none" aria-hidden="true">
-        <path d="M1 12L6.5 6.5L1 1" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
 interface ColumnItemProps {
     label: string;
     active?: boolean;
@@ -111,14 +99,14 @@ const ColumnItem = memo(function ColumnItem({ label, active, onClick, showArrow 
             type="button"
             onClick={onClick}
             className={cn(
-                'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors duration-100 flex items-center justify-between gap-2',
+                'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors duration-100 flex items-center justify-between gap-3',
                 active
                     ? 'bg-[#FFEFBA] text-[#4A4A4A] font-medium'
                     : 'text-[#0052C2] hover:bg-[#F4F9FC]',
             )}
         >
             <span>{label}</span>
-            {showArrow && <ArrowRightIcon />}
+            {showArrow && <img src={arrowRightIconSrc} width="9" height="14" aria-hidden="true" alt="" />}
         </button>
     );
 });
@@ -191,18 +179,22 @@ export const CityPickerModal = memo(function CityPickerModal({
     );
 
     const breadcrumb = (
-        <div className="flex items-center gap-1 text-sm select-none mb-5">
+        <div className="flex items-center justify-between text-sm select-none">
             <button
                 type="button"
                 onClick={() => setShowCountryPicker((v) => !v)}
-                className="flex items-center gap-1 text-[#0052C2] hover:underline"
+                className="flex items-center gap-1 text-[#0052C2] hover:underline py-3 pr-3 pl-1"
                 aria-label="Выбрать страну"
             >
-                <ArrowLeftIcon />
+                <div className='w-6 h-6 flex items-center justify-center'>
+                    <img src={arrowLeftIconSrc} aria-hidden="true" alt="" />
+                </div>
                 <span>страны</span>
             </button>
             <span className="text-[#999]">|</span>
-            <span className="text-[#4A4A4A] font-medium">{selectedCountry.name}</span>
+            <div className='p-3'>
+                <span className="text-[#4A4A4A] font-normal">{selectedCountry.name}</span>
+            </div>
         </div>
     );
 
@@ -241,27 +233,39 @@ export const CityPickerModal = memo(function CityPickerModal({
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-2xl shadow-2xl flex flex-col w-240 h-161"
+                className="bg-white rounded-xl shadow-2xl flex flex-col w-240 h-161"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
-                    <h2 className="text-xl font-bold text-[#222]">Выбор города</h2>
+                <div className="flex items-center justify-between p-5 gap-9 h-19 shrink-0">
+                    <h2 className="text-xl font-normal text-[#222] w-126 h-7 px-3">Выбор города</h2>
                     <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <SearchIcon />
-                        </span>
+                        {!query && (
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <img src={searchIconSrc} aria-hidden="true" alt="" />
+                            </span>
+                        )}
                         <input
                             ref={inputRef}
                             type="text"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Название города"
-                            className="pl-9 pr-4 py-2 rounded-lg border border-[#DDD] text-sm text-[#222] placeholder:text-[#999] outline-none focus:border-[#0052C2] w-64"
+                            className={`w-92 h-9 rounded border border-[#DDD] text-sm text-[#222] placeholder:text-[#999] outline-none focus:border-[#0099FF] py-1.5 ${query ? 'pl-3 pr-10' : 'pl-8.5 pr-2'}`}
                         />
+                        {query && (
+                            <button
+                                type="button"
+                                onClick={() => { setQuery(''); inputRef.current?.focus(); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
+                                aria-label="Очистить поиск"
+                            >
+                                <img src={crossIconSrc} aria-hidden="true" alt="" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex flex-1 overflow-hidden gap-5">
+                <div className="flex flex-1 overflow-hidden gap-9">
                     <div className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto p-5">
                         {breadcrumb}
                         {districts.length > 0 ? (
@@ -279,6 +283,12 @@ export const CityPickerModal = memo(function CityPickerModal({
                         )}
                     </div>
 
+                    {!selectedDistrict ? (
+                        <div className="flex flex-1 items-center justify-center">
+                            <img src={searchBGSrc} width="205" height="194" aria-hidden="true" alt="" />
+                        </div>
+                    ) : (
+                        <>
                     <div className="w-76 shrink-0 flex flex-col gap-2.5 overflow-y-auto py-5">
                         {regions.map((r) => (
                             <ColumnItem
@@ -304,6 +314,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                                             regionName={city.regionName}
                                             displayMode="search-result"
                                             variant="desktop"
+                                            bold={city.count > 30000}
                                             onClick={() => {
                                                 onSelect({
                                                     cityId: city.id,
@@ -328,6 +339,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                                                 cityName={city.name}
                                                 displayMode="default"
                                                 variant="desktop"
+                                                bold={(city.count ?? 0) > 30000}
                                                 onClick={() => handleSelectCity(city, selectedRegion.name)}
                                                 className="w-full"
                                             />
@@ -346,6 +358,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                                                 showFirstLetter={index === 0}
                                                 displayMode="default"
                                                 variant="desktop"
+                                                bold={(city.count ?? 0) > 30000}
                                                 onClick={() => handleSelectCity(city, selectedRegion.name)}
                                                 className="w-full"
                                             />
@@ -355,6 +368,8 @@ export const CityPickerModal = memo(function CityPickerModal({
                             </>
                         )}
                     </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
