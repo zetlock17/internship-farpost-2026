@@ -32,7 +32,7 @@ function App() {
   return (
     <div className="min-h-screen flex items-center justify-center">
 
-        <div className="flex items-center gap-7.75">
+        <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:items-center sm:text-left sm:gap-7.75">
           <button
             type="button"
             onClick={() => setModalOpen(true)}
@@ -40,9 +40,9 @@ function App() {
           >
             Выбрать город
           </button>
-          <span className="text-sm text-[#1E1E1E]">
+          <span className="text-sm text-[#1E1E1E] text-center sm:text-left">
             {pickedCity
-              ? `${pickedCity.cityName}, ${pickedCity.regionName}`
+              ? pickedCity.cityName
               : 'Город не выбран'}
           </span>
         </div>
@@ -51,6 +51,7 @@ function App() {
           <CityPickerModal
             onSelect={handleCitySelect}
             onClose={() => setModalOpen(false)}
+            currentCity={pickedCity}
           />
         )}
     </div>

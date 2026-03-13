@@ -1,0 +1,446 @@
+import {
+    memo,
+    useState,
+    useMemo,
+    useCallback,
+    type ChangeEvent,
+    type RefObject,
+} from 'react';
+import CitySelector from './CitySelector';
+import searchIconSrc from '../assets/search.svg';
+import arrowLeftIconSrc from '../assets/arrowCountry.svg';
+import crossIconSrc from '../assets/cross.svg';
+import crossIconMobileSrc from '../assets/crossCloseMobile.svg';
+import {
+    type GeoNode,
+    type SearchCity,
+} from '../stores/cityPicker.data';
+
+const EMPTY_SEARCH_RESULTS: SearchCity[] = [];
+
+type MobileStep = 'countries' | 'districts' | 'regions' | 'cities';
+
+type Variant = 'desktop' | 'mobile';
+
+interface SearchResultItemProps {
+    city: SearchCity;
+    onSelect: (city: SearchCity) => void;
+    variant?: Variant;
+}
+
+const SearchResultItem = memo(function SearchResultItem({ city, onSelect, variant = 'desktop' }: SearchResultItemProps) {
+    const handleClick = useCallback(() => {
+        onSelect(city);
+    }, [city, onSelect]);
+
+    return (
+        <CitySelector
+            cityName={city.cityName}
+            regionName={city.regionName}
+            displayMode="search-result"
+            variant={variant}
+            bold={city.count > 30000}
+            onClick={handleClick}
+            className="w-full"
+        />
+    );
+});
+
+interface SearchResultsListProps {
+    results: SearchCity[];
+    onSelect: (city: SearchCity) => void;
+    variant?: Variant;
+}
+
+const SearchResultsList = memo(function SearchResultsList({ results, onSelect, variant = 'desktop' }: SearchResultsListProps) {
+    if (results.length === 0) {
+        return <p className="text-[#999] text-sm mt-4 text-center">Города не найдены</p>;
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            {results.map((city) => (
+                <SearchResultItem key={city.cityId} city={city} onSelect={onSelect} variant={variant} />
+            ))}
+        </div>
+    );
+});
+
+interface RegionCityItemProps {
+    city: GeoNode;
+    regionName: string;
+    showFirstLetter?: boolean;
+    onSelect: (city: GeoNode) => void;
+    variant?: Variant;
+    selectedCityId?: number | null;
+}
+
+const RegionCityItem = memo(function RegionCityItem({
+    city,
+    regionName,
+    showFirstLetter,
+    onSelect,
+    variant = 'desktop',
+    selectedCityId,
+}: RegionCityItemProps) {
+    const handleClick = useCallback(() => {
+        onSelect(city);
+    }, [city, onSelect]);
+
+    return (
+        <CitySelector
+            cityName={city.name}
+            regionName={regionName}
+            showFirstLetter={showFirstLetter}
+            displayMode="default"
+            variant={variant}
+            bold={(city.count ?? 0) > 30000}
+            selected={selectedCityId === city.id}
+            onClick={handleClick}
+            className="w-full"
+        />
+    );
+});
+
+interface CountryItemProps {
+    country: GeoNode;
+    onSelect: (countryId: number) => void;
+}
+
+const CountryItem = memo(function CountryItem({ country, onSelect }: CountryItemProps) {
+    const handleClick = useCallback(() => {
+        onSelect(country.id);
+    }, [country.id, onSelect]);
+
+    return (
+        <CitySelector
+            cityName={country.name}
+            variant="mobile"
+            displayMode="default"
+            onClick={handleClick}
+            className="w-full"
+        />
+    );
+});
+
+interface MobileRegionItemProps {
+    region: GeoNode;
+    onSelect: (regionId: number) => void;
+}
+
+const MobileRegionItem = memo(function MobileRegionItem({ region, onSelect }: MobileRegionItemProps) {
+    const handleClick = useCallback(() => {
+        onSelect(region.id);
+    }, [region.id, onSelect]);
+
+    return (
+        <CitySelector
+            cityName={region.name}
+            variant="mobile"
+            displayMode="default"
+            onClick={handleClick}
+            className="w-full"
+        />
+    );
+});
+
+interface RegionCitiesListProps {
+    regionName: string;
+    popularCities: GeoNode[];
+    cityGroups: Array<[string, GeoNode[]]>;
+    onSelect: (city: GeoNode) => void;
+    variant?: Variant;
+    selectedCityId?: number | null;
+}
+
+const RegionCitiesList = memo(function RegionCitiesList({
+    regionName,
+    popularCities,
+    cityGroups,
+    onSelect,
+    variant = 'desktop',
+    selectedCityId,
+}: RegionCitiesListProps) {
+    return (
+        <>
+            {popularCities.length > 0 && (
+                <div className="flex flex-col mb-5">
+                    {popularCities.map((city) => (
+                        <RegionCityItem
+                            key={city.id}
+                            city={city}
+                            regionName={regionName}
+                            onSelect={onSelect}
+                            variant={variant}
+                            selectedCityId={selectedCityId}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {popularCities.length > 0 && <hr className="border-[#EEE] mb-3" />}
+
+            {cityGroups.map(([letter, letterCities]) => (
+                <div key={letter} className="flex flex-col gap-0.5 mb-1">
+                    {letterCities.map((city, index) => (
+                        <RegionCityItem
+                            key={city.id}
+                            city={city}
+                            regionName={regionName}
+                            showFirstLetter={index === 0}
+                            onSelect={onSelect}
+                            variant={variant}
+                            selectedCityId={selectedCityId}
+                        />
+                    ))}
+                </div>
+            ))}
+        </>
+    );
+});
+
+interface MobileCityPickerHeaderProps {
+    query: string;
+    inputRef: RefObject<HTMLInputElement | null>;
+    onQueryChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onClearQuery: () => void;
+    onClose: () => void;
+    currentCityName?: string;
+}
+
+const MobileCityPickerHeader = memo(function MobileCityPickerHeader({
+    query,
+    inputRef,
+    onQueryChange,
+    onClearQuery,
+    onClose,
+    currentCityName,
+}: MobileCityPickerHeaderProps) {
+    return (
+        <div className="shrink-0">
+            <div className="flex items-center justify-between py-2 px-3 gap-3">
+                <h2 className="text-[19px] font-bold text-[#1D1D20]">Выбор города</h2>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#F4F9FC]"
+                    aria-label="Закрыть"
+                >
+                    <img src={crossIconMobileSrc} aria-hidden="true" alt="" />
+                </button>
+            </div>
+            <div className='pt-5 pb-2 px-3 gap-2 flex flex-col'>
+                <div
+                    className={`h-9 rounded border border-[#DDD] focus-within:border-[#0099FF] flex items-center gap-1 py-1.5 ${query ? 'pl-3 pr-2' : 'pl-2 pr-3'}`}
+                >
+                    {!query && (
+                        <div className="w-6 h-6 flex items-center justify-center pointer-events-none shrink-0">
+                            <img src={searchIconSrc} aria-hidden="true" alt="" />
+                        </div>
+                    )}
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={query}
+                        onChange={onQueryChange}
+                        placeholder="Название города"
+                        className="flex-1 h-6 leading-6 bg-transparent text-[16px] text-[#222] placeholder:text-[#999] outline-none relative top-px"
+                    />
+                    {query && (
+                        <button
+                            type="button"
+                            onClick={onClearQuery}
+                            className="w-6 h-6 flex items-center justify-center shrink-0"
+                            aria-label="Очистить поиск"
+                        >
+                            <img src={crossIconSrc} aria-hidden="true" alt="" />
+                        </button>
+                    )}
+                </div>
+                {currentCityName && (
+                    <p className="text-sm text-[#999] px-0.5">сейчас, {currentCityName}</p>
+                )}
+            </div>
+        </div>
+    );
+});
+
+const MobileBackButton = memo(function MobileBackButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="flex items-center gap-1 pl-3 py-3 pr-3 text-[#0052C2] text-[16px] hover:underline"
+            aria-label="Назад"
+        >
+            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                <img src={arrowLeftIconSrc} aria-hidden="true" alt="" />
+            </div>
+            <span className="leading-none relative top-px">Назад</span>
+        </button>
+    );
+});
+
+interface CityPickerModalMobileProps {
+    query: string;
+    inputRef: RefObject<HTMLInputElement | null>;
+    onQueryChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onClearQuery: () => void;
+    onClose: () => void;
+    currentCityName?: string;
+    selectedCityId?: number | null;
+    primaryCountry: GeoNode;
+    secondaryCountries: GeoNode[];
+    districts: GeoNode[];
+    selectedRegion: GeoNode | null;
+    popularCities: GeoNode[];
+    cityGroups: Array<[string, GeoNode[]]>;
+    searchResults: SearchCity[] | null;
+    isSearching: boolean;
+    onSelectCountry: (countryId: number) => void;
+    onSelectDistrict: (districtId: number) => void;
+    onSelectRegion: (regionId: number) => void;
+    onSelectSearchResult: (city: SearchCity) => void;
+    onSelectRegionCity: (city: GeoNode) => void;
+}
+
+export const CityPickerModalMobile = memo(function CityPickerModalMobile({
+    query,
+    inputRef,
+    onQueryChange,
+    onClearQuery,
+    onClose,
+    currentCityName,
+    selectedCityId,
+    primaryCountry,
+    secondaryCountries,
+    districts,
+    selectedRegion,
+    popularCities,
+    cityGroups,
+    searchResults,
+    isSearching,
+    onSelectCountry,
+    onSelectDistrict,
+    onSelectRegion,
+    onSelectSearchResult,
+    onSelectRegionCity,
+}: CityPickerModalMobileProps) {
+    const [mobileStep, setMobileStep] = useState<MobileStep>('countries');
+    const [selectedMobileDistrictId, setSelectedMobileDistrictId] = useState<number | null>(null);
+
+    const mobileRegionsForSelectedDistrict = useMemo(() => {
+        if (selectedMobileDistrictId === null) return [];
+        const district = districts.find((d) => d.id === selectedMobileDistrictId);
+        return district?.children ?? [];
+    }, [districts, selectedMobileDistrictId]);
+
+    const handleMobileCountrySelect = useCallback((countryId: number) => {
+        onSelectCountry(countryId);
+        setSelectedMobileDistrictId(null);
+        setMobileStep('districts');
+    }, [onSelectCountry]);
+
+    const handleMobileDistrictSelect = useCallback((districtId: number) => {
+        onSelectDistrict(districtId);
+        setSelectedMobileDistrictId(districtId);
+        setMobileStep('regions');
+    }, [onSelectDistrict]);
+
+    const handleMobileRegionSelect = useCallback((regionId: number) => {
+        onSelectRegion(regionId);
+        setMobileStep('cities');
+    }, [onSelectRegion]);
+
+    const handleMobileBack = useCallback(() => {
+        if (mobileStep === 'cities') {
+            setMobileStep('regions');
+            return;
+        }
+        if (mobileStep === 'regions') {
+            setMobileStep('districts');
+            return;
+        }
+        setMobileStep('countries');
+    }, [mobileStep]);
+
+    const allCountries = [primaryCountry, ...secondaryCountries];
+
+    return (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+            <MobileCityPickerHeader
+                query={query}
+                inputRef={inputRef}
+                onQueryChange={onQueryChange}
+                onClearQuery={onClearQuery}
+                onClose={onClose}
+                currentCityName={currentCityName}
+            />
+            <div className="flex-1 overflow-y-auto">
+                {isSearching ? (
+                    <div>
+                        <SearchResultsList
+                            results={searchResults ?? EMPTY_SEARCH_RESULTS}
+                            onSelect={onSelectSearchResult}
+                            variant="mobile"
+                        />
+                    </div>
+                ) : mobileStep === 'countries' ? (
+                    <div className="flex flex-col">
+                        {allCountries.map((country) => (
+                            <CountryItem
+                                key={country.id}
+                                country={country}
+                                onSelect={handleMobileCountrySelect}
+                            />
+                        ))}
+                    </div>
+                ) : mobileStep === 'districts' ? (
+                    <>
+                        <MobileBackButton onClick={handleMobileBack} />
+                        <div className="flex flex-col">
+                            {districts.map((district) => (
+                                <MobileRegionItem
+                                    key={district.id}
+                                    region={district}
+                                    onSelect={handleMobileDistrictSelect}
+                                />
+                            ))}
+                        </div>
+                    </>
+                ) : mobileStep === 'regions' ? (
+                    <>
+                        <MobileBackButton onClick={handleMobileBack} />
+                        <div className="flex flex-col">
+                            {mobileRegionsForSelectedDistrict.map((region) => (
+                                <MobileRegionItem
+                                    key={region.id}
+                                    region={region}
+                                    onSelect={handleMobileRegionSelect}
+                                />
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <MobileBackButton onClick={handleMobileBack} />
+                        <div className="pb-4 pt-1">
+                            {selectedRegion ? (
+                                <RegionCitiesList
+                                    regionName={selectedRegion.name}
+                                    popularCities={popularCities}
+                                    cityGroups={cityGroups}
+                                    onSelect={onSelectRegionCity}
+                                    variant="desktop"
+                                    selectedCityId={selectedCityId}
+                                />
+                            ) : null}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+});
+
+export default CityPickerModalMobile;

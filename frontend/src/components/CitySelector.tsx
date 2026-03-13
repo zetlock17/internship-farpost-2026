@@ -78,9 +78,9 @@ const CitySelector = memo(function CitySelector({
 
     const firstLetter = cityName.charAt(0);
 
-    const baseShapeClasses = resolvedIsMobile ? 'rounded-lg h-12' : 'rounded-none h-14';
+    const baseShapeClasses = resolvedIsMobile ? 'rounded-none h-14' : 'rounded-lg h-12';
 
-    const searchResultShapeClasses = resolvedIsMobile ? 'rounded-lg h-15.5' : 'rounded-none h-17.5';
+    const searchResultShapeClasses = resolvedIsMobile ? 'rounded-none h-17.5' : 'rounded-lg h-15.5';
 
     const colourClasses = selected
         ? 'bg-[#FFEFBA] text-[#4A4A4A]'
@@ -97,7 +97,7 @@ const CitySelector = memo(function CitySelector({
                 'group flex items-center justify-between gap-3 cursor-pointer text-[16px]',
                 bold ? 'font-bold' : 'font-normal',
                 'transition-colors duration-150 outline-none',
-                resolvedIsMobile ? 'p-3' : 'px-3 py-4',
+                resolvedIsMobile ? 'px-3 py-4' : 'p-3',
                 isSearchResult || isAllAddonsVisible ? searchResultShapeClasses : baseShapeClasses,
                 colourClasses,
                 className,
@@ -112,7 +112,7 @@ const CitySelector = memo(function CitySelector({
             <span className="flex items-center gap-2 min-w-0 flex-1">
                 {isSearchResult || isAllAddonsVisible ? (
                     <div className="flex flex-col min-w-0 items-start text-left">
-                        <span className="truncate text-sm leading-none">{cityName}</span>
+                        <span className="truncate text-[16px] leading-none">{cityName}</span>
 
                         {regionName && (
                             <span className="truncate text-xs leading-none mt-1 text-[#999999] font-normal">
@@ -121,7 +121,7 @@ const CitySelector = memo(function CitySelector({
                         )}
                     </div>
                 ) : (
-                    <span className="text-sm leading-none relative top-px">
+                    <span className="text-[16px] leading-none relative top-px">
                         {cityName}
                     </span>
                 )}
