@@ -3,6 +3,8 @@ import {
     useState,
     useMemo,
     useCallback,
+    useEffect,
+    useRef,
     type ChangeEvent,
     type RefObject,
 } from 'react';
@@ -17,6 +19,19 @@ import {
 } from '../stores/cityPicker.data';
 
 const EMPTY_SEARCH_RESULTS: SearchCity[] = [];
+
+const MOBILE_MODAL_HISTORY_STATE_KEY = 'cityPickerMobileModal';
+
+const getPreviousMobileStep = (step: MobileStep): MobileStep => {
+    if (step === 'cities') {
+        return 'regions';
+    }
+    if (step === 'regions') {
+        return 'districts';
+    }
+
+    return 'countries';
+};
 
 type MobileStep = 'countries' | 'districts' | 'regions' | 'cities';
 
@@ -328,6 +343,30 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
 }: CityPickerModalMobileProps) {
     const [mobileStep, setMobileStep] = useState<MobileStep>('countries');
     const [selectedMobileDistrictId, setSelectedMobileDistrictId] = useState<number | null>(null);
+    const hasModalHistoryEntryRef = useRef(false);
+    const shouldIgnoreNextPopStateRef = useRef(false);
+    const mobileStepRef = useRef<MobileStep>('countries');
+    const isSearchingRef = useRef(isSearching);
+
+    const pushModalHistoryEntry = useCallback(() => {
+        window.history.pushState(
+            {
+                [MOBILE_MODAL_HISTORY_STATE_KEY]: true,
+            },
+            '',
+            window.location.href,
+        );
+
+        hasModalHistoryEntryRef.current = true;
+    }, []);
+
+    useEffect(() => {
+        mobileStepRef.current = mobileStep;
+    }, [mobileStep]);
+
+    useEffect(() => {
+        isSearchingRef.current = isSearching;
+    }, [isSearching]);
 
     const mobileRegionsForSelectedDistrict = useMemo(() => {
         if (selectedMobileDistrictId === null) return [];
@@ -353,16 +392,57 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
     }, [onSelectRegion]);
 
     const handleMobileBack = useCallback(() => {
-        if (mobileStep === 'cities') {
-            setMobileStep('regions');
-            return;
+        setMobileStep((currentStep) => getPreviousMobileStep(currentStep));
+    }, []);
+
+    const syncHistoryEntryBeforeClose = useCallback(() => {
+        if (hasModalHistoryEntryRef.current) {
+            shouldIgnoreNextPopStateRef.current = true;
+            hasModalHistoryEntryRef.current = false;
+            window.history.back();
         }
-        if (mobileStep === 'regions') {
-            setMobileStep('districts');
-            return;
-        }
-        setMobileStep('countries');
-    }, [mobileStep]);
+    }, []);
+
+    const closeWithHistorySync = useCallback(() => {
+        syncHistoryEntryBeforeClose();
+        onClose();
+    }, [onClose, syncHistoryEntryBeforeClose]);
+
+    useEffect(() => {
+        pushModalHistoryEntry();
+
+        const onPopState = () => {
+            if (shouldIgnoreNextPopStateRef.current) {
+                shouldIgnoreNextPopStateRef.current = false;
+                return;
+            }
+
+            if (mobileStepRef.current === 'countries' || isSearchingRef.current) {
+                hasModalHistoryEntryRef.current = false;
+                onClose();
+                return;
+            }
+
+            setMobileStep((currentStep) => getPreviousMobileStep(currentStep));
+            pushModalHistoryEntry();
+        };
+
+        window.addEventListener('popstate', onPopState);
+
+        return () => {
+            window.removeEventListener('popstate', onPopState);
+        };
+    }, [onClose, pushModalHistoryEntry]);
+
+    const handleSearchResultSelectWithHistorySync = useCallback((city: SearchCity) => {
+        syncHistoryEntryBeforeClose();
+        onSelectSearchResult(city);
+    }, [onSelectSearchResult, syncHistoryEntryBeforeClose]);
+
+    const handleRegionCitySelectWithHistorySync = useCallback((city: GeoNode) => {
+        syncHistoryEntryBeforeClose();
+        onSelectRegionCity(city);
+    }, [onSelectRegionCity, syncHistoryEntryBeforeClose]);
 
     const allCountries = [primaryCountry, ...secondaryCountries];
 
@@ -373,7 +453,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                 inputRef={inputRef}
                 onQueryChange={onQueryChange}
                 onClearQuery={onClearQuery}
-                onClose={onClose}
+                onClose={closeWithHistorySync}
                 currentCityName={currentCityName}
             />
             <div className="flex-1 overflow-y-auto">
@@ -381,7 +461,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                     <div>
                         <SearchResultsList
                             results={searchResults ?? EMPTY_SEARCH_RESULTS}
-                            onSelect={onSelectSearchResult}
+                            onSelect={handleSearchResultSelectWithHistorySync}
                             variant="mobile"
                         />
                     </div>
@@ -430,7 +510,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                                     regionName={selectedRegion.name}
                                     popularCities={popularCities}
                                     cityGroups={cityGroups}
-                                    onSelect={onSelectRegionCity}
+                                    onSelect={handleRegionCitySelectWithHistorySync}
                                     variant="desktop"
                                     selectedCityId={selectedCityId}
                                 />

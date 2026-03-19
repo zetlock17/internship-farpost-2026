@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo } from 'react';
-import geoData from '../data/geo.json';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { getGeoData } from '../api/geoApi';
 
 export interface GeoNode {
     id: number;
@@ -95,6 +95,12 @@ const CYRILLIC_TO_LATIN: Record<string, string> = {
 
 const EMPTY_NODES: GeoNode[] = [];
 const EMPTY_CITY_GROUPS: Array<[string, GeoNode[]]> = [];
+const EMPTY_COUNTRY: GeoNode = {
+    id: 0,
+    name: '',
+    type: 'country',
+    children: EMPTY_NODES,
+};
 const EMPTY_REGION_CONTENT: RegionContent = {
     popularCities: EMPTY_NODES,
     cityGroups: EMPTY_CITY_GROUPS,
@@ -149,6 +155,17 @@ function pickTopCities(cities: GeoNode[], limit = 3): GeoNode[] {
 }
 
 function buildGeoIndex(countries: GeoNode[]): GeoIndex {
+    if (countries.length === 0) {
+        return {
+            primaryCountry: EMPTY_COUNTRY,
+            secondaryCountries: EMPTY_NODES,
+            nodesById: new Map<number, GeoNode>(),
+            searchableCities: [],
+            searchCache: new Map<string, SearchCity[]>(),
+            regionCache: new Map<number, RegionContent>(),
+        };
+    }
+
     const nodesById = new Map<number, GeoNode>();
     const searchableCities: SearchCity[] = [];
 
@@ -177,7 +194,7 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
         }
     }
 
-    const primaryCountry = countries.find((country) => country.name === 'Россия') ?? countries[0];
+    const primaryCountry = countries.find((country) => country.name === 'Россия') ?? countries[0] ?? EMPTY_COUNTRY;
 
     return {
         primaryCountry,
@@ -189,17 +206,9 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
     };
 }
 
-const geoIndex = buildGeoIndex(geoData as GeoNode[]);
+const emptyGeoIndex = buildGeoIndex(EMPTY_NODES);
 
-export const defaultCountryId = geoIndex.primaryCountry.id;
-
-function getNodeById(nodeId: number | null): GeoNode | null {
-    if (nodeId === null) {
-        return null;
-    }
-
-    return geoIndex.nodesById.get(nodeId) ?? null;
-}
+export const defaultCountryId = 0;
 
 function getChildById(parent: GeoNode | null, childId: number | null): GeoNode | null {
     if (!parent || childId === null) {
@@ -209,7 +218,7 @@ function getChildById(parent: GeoNode | null, childId: number | null): GeoNode |
     return (parent.children ?? []).find((child) => child.id === childId) ?? null;
 }
 
-function getSearchResults(query: string): SearchCity[] | null {
+function getSearchResults(query: string, geoIndex: GeoIndex): SearchCity[] | null {
     const normalizedQuery = normalizeSearchValue(query);
     if (normalizedQuery.length < 2) {
         return null;
@@ -233,7 +242,7 @@ function getSearchResults(query: string): SearchCity[] | null {
     return results;
 }
 
-function getRegionContent(region: GeoNode | null): RegionContent {
+function getRegionContentForIndex(region: GeoNode | null, geoIndex: GeoIndex): RegionContent {
     if (!region) {
         return EMPTY_REGION_CONTENT;
     }
@@ -262,11 +271,30 @@ export function useCityPickerDerivedData({
     selectedRegionId,
 }: UseCityPickerDerivedDataArgs): UseCityPickerDerivedDataResult {
     const deferredQuery = useDeferredValue(query);
+    const [geoIndex, setGeoIndex] = useState<GeoIndex>(emptyGeoIndex);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        getGeoData()
+            .then((countries) => {
+                if (!isCancelled) {
+                    setGeoIndex(buildGeoIndex(countries));
+                }
+            })
+            .catch((error: unknown) => {
+                console.error('Failed to load geo data from API:', error);
+            });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
 
     const selectedCountry = useMemo(() => {
-        const country = getNodeById(selectedCountryId);
+        const country = geoIndex.nodesById.get(selectedCountryId) ?? null;
         return country?.type === 'country' ? country : geoIndex.primaryCountry;
-    }, [selectedCountryId]);
+    }, [geoIndex, selectedCountryId]);
 
     const selectedDistrict = useMemo(() => {
         const district = getChildById(selectedCountry, selectedDistrictId);
@@ -278,8 +306,11 @@ export function useCityPickerDerivedData({
         return region?.type === 'region' ? region : null;
     }, [selectedDistrict, selectedRegionId]);
 
-    const searchResults = useMemo(() => getSearchResults(deferredQuery), [deferredQuery]);
-    const regionContent = useMemo(() => getRegionContent(selectedRegion), [selectedRegion]);
+    const searchResults = useMemo(() => getSearchResults(deferredQuery, geoIndex), [deferredQuery, geoIndex]);
+    const regionContent = useMemo(
+        () => getRegionContentForIndex(selectedRegion, geoIndex),
+        [selectedRegion, geoIndex],
+    );
 
     return {
         primaryCountry: geoIndex.primaryCountry,

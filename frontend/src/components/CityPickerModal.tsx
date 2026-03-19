@@ -428,6 +428,12 @@ export const CityPickerModal = memo(function CityPickerModal({
     });
 
     useEffect(() => {
+        if (selectedCountryId === 0 && primaryCountry.id !== 0) {
+            selectCountry(primaryCountry.id);
+        }
+    }, [primaryCountry.id, selectCountry, selectedCountryId]);
+
+    useEffect(() => {
         inputRef.current?.focus();
     }, []);
 
