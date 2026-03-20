@@ -13,7 +13,6 @@ import CitySelector from './CitySelector';
 import CityPickerModalMobile from './CityPickerModalMobile';
 import searchIconSrc from '../assets/search.svg';
 import arrowLeftIconSrc from '../assets/arrowCountry.svg';
-import arrowRightIconSrc from '../assets/arrow.svg';
 import crossIconSrc from '../assets/cross.svg';
 import searchBGSrc from '../assets/searchBG.svg';
 import {
@@ -37,42 +36,6 @@ const EMPTY_SEARCH_RESULTS: SearchCity[] = [];
 const cn = (...classes: Array<string | false | null | undefined>) =>
     classes.filter(Boolean).join(' ');
 
-interface ColumnItemProps {
-    itemId: number;
-    label: string;
-    active?: boolean;
-    onSelect: (itemId: number) => void;
-    showArrow?: boolean;
-}
-
-const ColumnItem = memo(function ColumnItem({
-    itemId,
-    label,
-    active,
-    onSelect,
-    showArrow,
-}: ColumnItemProps) {
-    const handleClick = useCallback(() => {
-        onSelect(itemId);
-    }, [itemId, onSelect]);
-
-    return (
-        <button
-            type="button"
-            onClick={handleClick}
-            className={cn(
-                'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors duration-100 flex items-center justify-between gap-3',
-                active
-                    ? 'bg-[#FFEFBA] text-[#4A4A4A] font-medium'
-                    : 'text-[#0052C2] hover:bg-[#F4F9FC]',
-            )}
-        >
-            <span>{label}</span>
-            {showArrow && <img src={arrowRightIconSrc} width="9" height="14" aria-hidden="true" alt="" />}
-        </button>
-    );
-});
-
 interface SelectionColumnProps {
     items: GeoNode[];
     activeId: number | null;
@@ -93,13 +56,14 @@ const SelectionColumn = memo(function SelectionColumn({
     return (
         <>
             {items.map((item) => (
-                <ColumnItem
+                <CitySelector
                     key={item.id}
-                    itemId={item.id}
-                    label={item.name}
-                    active={activeId === item.id}
-                    showArrow={activeId === item.id}
-                    onSelect={onSelect}
+                    cityName={item.name}
+                    selected={activeId === item.id}
+                    variant="desktop"
+                    displayMode="default"
+                    onClick={() => onSelect(item.id)}
+                    className="w-full"
                 />
             ))}
         </>
@@ -203,24 +167,28 @@ const CountryPickerDialog = memo(function CountryPickerDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-2xl w-120 max-h-[80vh] overflow-y-auto p-8"
+                className="bg-white rounded-2xl shadow-2xl w-120 max-h-[80vh] overflow-y-auto scrollbar-hidden p-8"
                 onClick={(event) => event.stopPropagation()}
             >
                 <h2 className="text-xl font-bold text-[#222] mb-6">Выбор страны</h2>
                 <div className="flex flex-col gap-1">
-                    <ColumnItem
-                        itemId={primaryCountry.id}
-                        label={primaryCountry.name}
-                        active={selectedCountryId === primaryCountry.id}
-                        onSelect={onSelectCountry}
+                    <CitySelector
+                        cityName={primaryCountry.name}
+                        selected={selectedCountryId === primaryCountry.id}
+                        variant="desktop"
+                        displayMode="default"
+                        onClick={() => onSelectCountry(primaryCountry.id)}
+                        className="w-full"
                     />
                     {secondaryCountries.map((country) => (
-                        <ColumnItem
+                        <CitySelector
                             key={country.id}
-                            itemId={country.id}
-                            label={country.name}
-                            active={selectedCountryId === country.id}
-                            onSelect={onSelectCountry}
+                            cityName={country.name}
+                            selected={selectedCountryId === country.id}
+                            variant="desktop"
+                            displayMode="default"
+                            onClick={() => onSelectCountry(country.id)}
+                            className="w-full"
                         />
                     ))}
                 </div>
@@ -379,6 +347,7 @@ export const CityPickerModal = memo(function CityPickerModal({
 }: CityPickerModalProps) {
     const isMobile = useIsMobile();
     const inputRef = useRef<HTMLInputElement>(null);
+    const hasInitializedFromCurrentCityRef = useRef(false);
 
     const {
         query,
@@ -420,6 +389,7 @@ export const CityPickerModal = memo(function CityPickerModal({
         isSearching,
         popularCities,
         cityGroups,
+        resolveCityPath,
     } = useCityPickerDerivedData({
         query,
         selectedCountryId,
@@ -432,6 +402,28 @@ export const CityPickerModal = memo(function CityPickerModal({
             selectCountry(primaryCountry.id);
         }
     }, [primaryCountry.id, selectCountry, selectedCountryId]);
+
+    useEffect(() => {
+        if (hasInitializedFromCurrentCityRef.current) {
+            return;
+        }
+
+        const cityPath = resolveCityPath(currentCity?.cityId);
+        if (!cityPath) {
+            return;
+        }
+
+        selectCountry(cityPath.countryId);
+        selectDistrict(cityPath.districtId);
+        selectRegion(cityPath.regionId);
+        hasInitializedFromCurrentCityRef.current = true;
+    }, [
+        currentCity?.cityId,
+        resolveCityPath,
+        selectCountry,
+        selectDistrict,
+        selectRegion,
+    ]);
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -501,6 +493,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                 primaryCountry={primaryCountry}
                 secondaryCountries={secondaryCountries}
                 districts={districts}
+                selectedDistrictId={selectedDistrictId}
                 selectedRegion={selectedRegion}
                 popularCities={popularCities}
                 cityGroups={cityGroups}
@@ -543,8 +536,8 @@ export const CityPickerModal = memo(function CityPickerModal({
                     onClearQuery={handleClearQuery}
                 />
 
-                <div className="flex flex-1 overflow-hidden gap-9">
-                    <div className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto p-5">
+                <div className="flex flex-1 overflow-hidden gap-5">
+                    <div className="w-60 shrink-0 flex flex-col gap-3 overflow-y-auto scrollbar-hidden p-5">
                         <CountryBreadcrumb
                             countryName={selectedCountry.name}
                             onToggleCountryPicker={toggleCountryPicker}
@@ -561,7 +554,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                         <EmptyPickerState />
                     ) : (
                         <>
-                            <div className="w-76 shrink-0 flex flex-col gap-2.5 overflow-y-auto py-5">
+                            <div className="w-76 shrink-0 flex flex-col gap-2.5 overflow-y-auto scrollbar-hidden py-5">
                                 <SelectionColumn
                                     items={regions}
                                     activeId={selectedRegion?.id ?? null}
@@ -569,7 +562,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                                 />
                             </div>
 
-                            <div className="w-94 shrink-0 overflow-y-auto p-5">
+                            <div className="w-94 shrink-0 overflow-y-auto scrollbar-hidden p-5">
                                 {isSearching ? (
                                     <SearchResultsList
                                         results={searchResults ?? EMPTY_SEARCH_RESULTS}
@@ -581,6 +574,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                                         popularCities={popularCities}
                                         cityGroups={cityGroups}
                                         onSelect={handleRegionCitySelect}
+                                        selectedCityId={currentCity?.cityId}
                                     />
                                 ) : null}
                             </div>

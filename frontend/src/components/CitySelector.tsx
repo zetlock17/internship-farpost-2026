@@ -14,6 +14,9 @@ import arrowUrl from '../assets/arrow.svg';
  * - default — обычный список городов
  *   • показывается только название города
  *   • стрелка появляется если selected=true
+ *   • на desktop левый контейнер с буквой скрывается, если буква не нужна
+ *   • исключение: для элементов 3-го столбца (когда передан regionName)
+ *     контейнер сохраняется пустым, чтобы удерживать одинаковую ширину/выравнивание
  *
  * - search-result — результат поиска
  *   • показывается город + регион
@@ -49,7 +52,7 @@ const ChevronRight = () => (
 
 const LetterBadge = memo(({ letter }: { letter: string }) => (
     <div
-        className="text-[16px] h-6 w-4 font-normal text-[#999999] text-left"
+        className="text-[16px] h-6 w-4 font-normal text-[#999999] text-left -mb-0.5"
         aria-hidden="true"
     >
         {letter}
@@ -88,6 +91,13 @@ const CitySelector = memo(function CitySelector({
 
     const showLetter = isAllAddonsVisible || showFirstLetter;
     const showArrow = isAllAddonsVisible || (!isSearchResult && selected);
+    const isThirdColumnDefaultItem = displayMode === 'default' && Boolean(regionName);
+    const shouldRenderLetterContainer =
+        resolvedIsMobile ||
+        isSearchResult ||
+        isAllAddonsVisible ||
+        showLetter ||
+        isThirdColumnDefaultItem;
 
     return (
         <button
@@ -104,10 +114,12 @@ const CitySelector = memo(function CitySelector({
             )}
             aria-pressed={selected}
         >
-            <div className={cn(
-                'w-4 shrink-0',
-                isSearchResult || isAllAddonsVisible ? 'h-9.5 self-start -mt-0.5' : 'self-center',
-            )}>{showLetter && <LetterBadge letter={firstLetter} />}</div>
+            {shouldRenderLetterContainer && (
+                <div className={cn(
+                    'w-4 shrink-0',
+                    isSearchResult || isAllAddonsVisible ? 'h-9.5 self-start' : 'self-center',
+                )}>{showLetter && <LetterBadge letter={firstLetter} />}</div>
+            )}
 
             <span className="flex items-center gap-2 min-w-0 flex-1">
                 {isSearchResult || isAllAddonsVisible ? (

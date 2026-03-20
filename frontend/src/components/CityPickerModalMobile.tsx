@@ -307,6 +307,7 @@ interface CityPickerModalMobileProps {
     primaryCountry: GeoNode;
     secondaryCountries: GeoNode[];
     districts: GeoNode[];
+    selectedDistrictId: number | null;
     selectedRegion: GeoNode | null;
     popularCities: GeoNode[];
     cityGroups: Array<[string, GeoNode[]]>;
@@ -330,6 +331,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
     primaryCountry,
     secondaryCountries,
     districts,
+    selectedDistrictId,
     selectedRegion,
     popularCities,
     cityGroups,
@@ -373,6 +375,15 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
         const district = districts.find((d) => d.id === selectedMobileDistrictId);
         return district?.children ?? [];
     }, [districts, selectedMobileDistrictId]);
+
+    useEffect(() => {
+        if (selectedDistrictId === null) {
+            return;
+        }
+
+        setSelectedMobileDistrictId(selectedDistrictId);
+        setMobileStep(selectedRegion ? 'cities' : 'regions');
+    }, [selectedDistrictId, selectedRegion]);
 
     const handleMobileCountrySelect = useCallback((countryId: number) => {
         onSelectCountry(countryId);

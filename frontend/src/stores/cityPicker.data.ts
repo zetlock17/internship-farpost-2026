@@ -31,6 +31,7 @@ interface GeoIndex {
     primaryCountry: GeoNode;
     secondaryCountries: GeoNode[];
     nodesById: Map<number, GeoNode>;
+    cityPathById: Map<number, { countryId: number; districtId: number; regionId: number }>;
     searchableCities: SearchCity[];
     searchCache: Map<string, SearchCity[]>;
     regionCache: Map<number, RegionContent>;
@@ -55,6 +56,11 @@ interface UseCityPickerDerivedDataResult {
     isSearching: boolean;
     popularCities: GeoNode[];
     cityGroups: Array<[string, GeoNode[]]>;
+    resolveCityPath: (cityId: number | null | undefined) => {
+        countryId: number;
+        districtId: number;
+        regionId: number;
+    } | null;
 }
 
 const CYRILLIC_TO_LATIN: Record<string, string> = {
@@ -160,6 +166,7 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
             primaryCountry: EMPTY_COUNTRY,
             secondaryCountries: EMPTY_NODES,
             nodesById: new Map<number, GeoNode>(),
+            cityPathById: new Map<number, { countryId: number; districtId: number; regionId: number }>(),
             searchableCities: [],
             searchCache: new Map<string, SearchCity[]>(),
             regionCache: new Map<number, RegionContent>(),
@@ -167,6 +174,7 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
     }
 
     const nodesById = new Map<number, GeoNode>();
+    const cityPathById = new Map<number, { countryId: number; districtId: number; regionId: number }>();
     const searchableCities: SearchCity[] = [];
 
     for (const country of countries) {
@@ -180,6 +188,11 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
 
                 for (const city of region.children ?? []) {
                     nodesById.set(city.id, city);
+                    cityPathById.set(city.id, {
+                        countryId: country.id,
+                        districtId: district.id,
+                        regionId: region.id,
+                    });
 
                     searchableCities.push({
                         cityId: city.id,
@@ -200,6 +213,7 @@ function buildGeoIndex(countries: GeoNode[]): GeoIndex {
         primaryCountry,
         secondaryCountries: countries.filter((country) => country.id !== primaryCountry.id),
         nodesById,
+        cityPathById,
         searchableCities,
         searchCache: new Map<string, SearchCity[]>(),
         regionCache: new Map<number, RegionContent>(),
@@ -312,6 +326,16 @@ export function useCityPickerDerivedData({
         [selectedRegion, geoIndex],
     );
 
+    const resolveCityPath = useMemo(() => {
+        return (cityId: number | null | undefined) => {
+            if (cityId === null || cityId === undefined) {
+                return null;
+            }
+
+            return geoIndex.cityPathById.get(cityId) ?? null;
+        };
+    }, [geoIndex]);
+
     return {
         primaryCountry: geoIndex.primaryCountry,
         secondaryCountries: geoIndex.secondaryCountries,
@@ -324,5 +348,6 @@ export function useCityPickerDerivedData({
         isSearching: searchResults !== null,
         popularCities: regionContent.popularCities,
         cityGroups: regionContent.cityGroups,
+        resolveCityPath,
     };
 }
