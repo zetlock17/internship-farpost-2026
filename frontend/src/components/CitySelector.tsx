@@ -81,7 +81,7 @@ const CitySelector = memo(function CitySelector({
 
     const firstLetter = cityName.charAt(0);
 
-    const baseShapeClasses = resolvedIsMobile ? 'rounded-none h-14' : 'rounded-lg h-12';
+    const baseShapeClasses = resolvedIsMobile ? 'rounded-none h-14' : 'rounded-lg min-h-12';
 
     const searchResultShapeClasses = resolvedIsMobile ? 'rounded-none h-17.5' : 'rounded-lg h-15.5';
 

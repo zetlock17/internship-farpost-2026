@@ -129,11 +129,11 @@ const CountryBreadcrumb = memo(function CountryBreadcrumb({
     onToggleCountryPicker,
 }: CountryBreadcrumbProps) {
     return (
-        <div className="flex items-center justify-between text-sm select-none">
+        <div className="flex items-center text-sm select-none">
             <button
                 type="button"
                 onClick={onToggleCountryPicker}
-                className="flex items-center gap-1 text-[#0052C2] hover:underline py-3 pr-3 pl-1"
+                className="flex items-center justify-end gap-1 text-[#0052C2] hover:underline py-3 pr-3 pl-1 w-24.25"
                 aria-label="Выбрать страну"
             >
                 <div className="w-6 h-6 flex items-center justify-center">
@@ -141,8 +141,8 @@ const CountryBreadcrumb = memo(function CountryBreadcrumb({
                 </div>
                 <span>страны</span>
             </button>
-            <span className="text-[#999]">|</span>
-            <div className="p-3">
+            <span className="text-[#999] w-1.25">|</span>
+            <div className="py-3 pl-3 w-24.25">
                 <span className="text-[#4A4A4A] font-normal">{countryName}</span>
             </div>
         </div>
@@ -311,10 +311,10 @@ const RegionCitiesList = memo(function RegionCitiesList({
                 </div>
             )}
 
-            {popularCities.length > 0 && <hr className="border-[#EEE] mb-3" />}
+            {popularCities.length > 0 && <hr className="border-[#EEE]" />}
 
             {cityGroups.map(([letter, letterCities]) => (
-                <div key={letter} className="flex flex-col gap-0.5 mb-1">
+                <div key={letter} className="flex flex-col gap-0.5 my-5">
                     {letterCities.map((city, index) => (
                         <RegionCityItem
                             key={city.id}
@@ -490,6 +490,7 @@ export const CityPickerModal = memo(function CityPickerModal({
                 onClose={handleClose}
                 currentCityName={currentCity?.cityName}
                 selectedCityId={currentCity?.cityId}
+                selectedCountryId={selectedCountryId}
                 primaryCountry={primaryCountry}
                 secondaryCountries={secondaryCountries}
                 districts={districts}

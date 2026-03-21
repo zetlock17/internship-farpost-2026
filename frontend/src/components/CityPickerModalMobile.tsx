@@ -120,9 +120,10 @@ const RegionCityItem = memo(function RegionCityItem({
 interface CountryItemProps {
     country: GeoNode;
     onSelect: (countryId: number) => void;
+    selectedCountryId: number;
 }
 
-const CountryItem = memo(function CountryItem({ country, onSelect }: CountryItemProps) {
+const CountryItem = memo(function CountryItem({ country, onSelect, selectedCountryId }: CountryItemProps) {
     const handleClick = useCallback(() => {
         onSelect(country.id);
     }, [country.id, onSelect]);
@@ -132,6 +133,7 @@ const CountryItem = memo(function CountryItem({ country, onSelect }: CountryItem
             cityName={country.name}
             variant="mobile"
             displayMode="default"
+            selected={selectedCountryId === country.id}
             onClick={handleClick}
             className="w-full"
         />
@@ -141,9 +143,10 @@ const CountryItem = memo(function CountryItem({ country, onSelect }: CountryItem
 interface MobileRegionItemProps {
     region: GeoNode;
     onSelect: (regionId: number) => void;
+    selected?: boolean;
 }
 
-const MobileRegionItem = memo(function MobileRegionItem({ region, onSelect }: MobileRegionItemProps) {
+const MobileRegionItem = memo(function MobileRegionItem({ region, onSelect, selected = false }: MobileRegionItemProps) {
     const handleClick = useCallback(() => {
         onSelect(region.id);
     }, [region.id, onSelect]);
@@ -153,6 +156,7 @@ const MobileRegionItem = memo(function MobileRegionItem({ region, onSelect }: Mo
             cityName={region.name}
             variant="mobile"
             displayMode="default"
+            selected={selected}
             onClick={handleClick}
             className="w-full"
         />
@@ -304,6 +308,7 @@ interface CityPickerModalMobileProps {
     onClose: () => void;
     currentCityName?: string;
     selectedCityId?: number | null;
+    selectedCountryId: number;
     primaryCountry: GeoNode;
     secondaryCountries: GeoNode[];
     districts: GeoNode[];
@@ -328,6 +333,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
     onClose,
     currentCityName,
     selectedCityId,
+    selectedCountryId,
     primaryCountry,
     secondaryCountries,
     districts,
@@ -343,12 +349,24 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
     onSelectSearchResult,
     onSelectRegionCity,
 }: CityPickerModalMobileProps) {
-    const [mobileStep, setMobileStep] = useState<MobileStep>('countries');
-    const [selectedMobileDistrictId, setSelectedMobileDistrictId] = useState<number | null>(null);
+    const [mobileStepOverride, setMobileStepOverride] = useState<MobileStep | null>(null);
+    const [selectedMobileDistrictIdState, setSelectedMobileDistrictIdState] = useState<number | null>(null);
     const hasModalHistoryEntryRef = useRef(false);
     const shouldIgnoreNextPopStateRef = useRef(false);
     const mobileStepRef = useRef<MobileStep>('countries');
     const isSearchingRef = useRef(isSearching);
+    const mobileStep = useMemo<MobileStep>(() => {
+        if (mobileStepOverride !== null) {
+            return mobileStepOverride;
+        }
+
+        if (selectedDistrictId === null) {
+            return 'countries';
+        }
+
+        return selectedRegion ? 'cities' : 'regions';
+    }, [mobileStepOverride, selectedDistrictId, selectedRegion]);
+    const selectedMobileDistrictId = selectedMobileDistrictIdState ?? selectedDistrictId;
 
     const pushModalHistoryEntry = useCallback(() => {
         window.history.pushState(
@@ -376,35 +394,26 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
         return district?.children ?? [];
     }, [districts, selectedMobileDistrictId]);
 
-    useEffect(() => {
-        if (selectedDistrictId === null) {
-            return;
-        }
-
-        setSelectedMobileDistrictId(selectedDistrictId);
-        setMobileStep(selectedRegion ? 'cities' : 'regions');
-    }, [selectedDistrictId, selectedRegion]);
-
     const handleMobileCountrySelect = useCallback((countryId: number) => {
         onSelectCountry(countryId);
-        setSelectedMobileDistrictId(null);
-        setMobileStep('districts');
+        setSelectedMobileDistrictIdState(null);
+        setMobileStepOverride('districts');
     }, [onSelectCountry]);
 
     const handleMobileDistrictSelect = useCallback((districtId: number) => {
         onSelectDistrict(districtId);
-        setSelectedMobileDistrictId(districtId);
-        setMobileStep('regions');
+        setSelectedMobileDistrictIdState(districtId);
+        setMobileStepOverride('regions');
     }, [onSelectDistrict]);
 
     const handleMobileRegionSelect = useCallback((regionId: number) => {
         onSelectRegion(regionId);
-        setMobileStep('cities');
+        setMobileStepOverride('cities');
     }, [onSelectRegion]);
 
     const handleMobileBack = useCallback(() => {
-        setMobileStep((currentStep) => getPreviousMobileStep(currentStep));
-    }, []);
+        setMobileStepOverride((currentStep) => getPreviousMobileStep(currentStep ?? mobileStep));
+    }, [mobileStep]);
 
     const syncHistoryEntryBeforeClose = useCallback(() => {
         if (hasModalHistoryEntryRef.current) {
@@ -434,7 +443,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                 return;
             }
 
-            setMobileStep((currentStep) => getPreviousMobileStep(currentStep));
+            setMobileStepOverride((currentStep) => getPreviousMobileStep(currentStep ?? mobileStepRef.current));
             pushModalHistoryEntry();
         };
 
@@ -483,6 +492,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                                 key={country.id}
                                 country={country}
                                 onSelect={handleMobileCountrySelect}
+                                selectedCountryId={selectedCountryId}
                             />
                         ))}
                     </div>
@@ -495,6 +505,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                                     key={district.id}
                                     region={district}
                                     onSelect={handleMobileDistrictSelect}
+                                    selected={selectedMobileDistrictId === district.id}
                                 />
                             ))}
                         </div>
@@ -508,6 +519,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                                     key={region.id}
                                     region={region}
                                     onSelect={handleMobileRegionSelect}
+                                    selected={selectedRegion?.id === region.id}
                                 />
                             ))}
                         </div>
@@ -522,7 +534,7 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                                     popularCities={popularCities}
                                     cityGroups={cityGroups}
                                     onSelect={handleRegionCitySelectWithHistorySync}
-                                    variant="desktop"
+                                    variant="mobile"
                                     selectedCityId={selectedCityId}
                                 />
                             ) : null}

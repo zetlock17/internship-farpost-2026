@@ -29,17 +29,35 @@ export const useCityPickerStore = create<CityPickerStoreState>((set) => ({
     setQuery: (query) => set({ query }),
     clearQuery: () => set({ query: '' }),
     toggleCountryPicker: () => set((state) => ({ showCountryPicker: !state.showCountryPicker })),
-    selectCountry: (countryId) => set({
-        selectedCountryId: countryId,
-        selectedDistrictId: null,
-        selectedRegionId: null,
-        showCountryPicker: false,
-        query: '',
+    selectCountry: (countryId) => set((state) => {
+        if (state.selectedCountryId === countryId) {
+            return state;
+        }
+
+        return {
+            selectedCountryId: countryId,
+            selectedDistrictId: null,
+            selectedRegionId: null,
+            showCountryPicker: false,
+            query: '',
+        };
     }),
-    selectDistrict: (districtId) => set({
-        selectedDistrictId: districtId,
-        selectedRegionId: null,
+    selectDistrict: (districtId) => set((state) => {
+        if (state.selectedDistrictId === districtId) {
+            return state;
+        }
+
+        return {
+            selectedDistrictId: districtId,
+            selectedRegionId: null,
+        };
     }),
-    selectRegion: (regionId) => set({ selectedRegionId: regionId }),
+    selectRegion: (regionId) => set((state) => {
+        if (state.selectedRegionId === regionId) {
+            return state;
+        }
+
+        return { selectedRegionId: regionId };
+    }),
     resetState: () => set(initialStoreState),
 }));

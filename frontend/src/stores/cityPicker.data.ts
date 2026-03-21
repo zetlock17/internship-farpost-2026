@@ -111,6 +111,7 @@ const EMPTY_REGION_CONTENT: RegionContent = {
     popularCities: EMPTY_NODES,
     cityGroups: EMPTY_CITY_GROUPS,
 };
+const CITY_NAME_COLLATOR = new Intl.Collator('ru-RU', { sensitivity: 'base' });
 
 function normalizeSearchValue(value: string): string {
     return value
@@ -156,8 +157,21 @@ function groupCitiesByLetter(cities: GeoNode[]): Array<[string, GeoNode[]]> {
     return [...groups.entries()];
 }
 
+function sortCitiesAlphabetically(cities: GeoNode[]): GeoNode[] {
+    return [...cities].sort((left, right) => CITY_NAME_COLLATOR.compare(left.name, right.name));
+}
+
 function pickTopCities(cities: GeoNode[], limit = 3): GeoNode[] {
-    return [...cities].sort((left, right) => (right.count ?? 0) - (left.count ?? 0)).slice(0, limit);
+    return [...cities]
+        .sort((left, right) => {
+            const countDiff = (right.count ?? 0) - (left.count ?? 0);
+            if (countDiff !== 0) {
+                return countDiff;
+            }
+
+            return CITY_NAME_COLLATOR.compare(left.name, right.name);
+        })
+        .slice(0, limit);
 }
 
 function buildGeoIndex(countries: GeoNode[]): GeoIndex {
@@ -266,11 +280,11 @@ function getRegionContentForIndex(region: GeoNode | null, geoIndex: GeoIndex): R
         return cachedContent;
     }
 
-    const regionCities = region.children ?? EMPTY_NODES;
-    const popularCities = pickTopCities(regionCities);
+    const sortedRegionCities = sortCitiesAlphabetically(region.children ?? EMPTY_NODES);
+    const popularCities = pickTopCities(sortedRegionCities);
     const popularCityIds = new Set(popularCities.map((city) => city.id));
     const cityGroups = groupCitiesByLetter(
-        regionCities.filter((city) => !popularCityIds.has(city.id)),
+        sortedRegionCities.filter((city) => !popularCityIds.has(city.id)),
     );
 
     const content = { popularCities, cityGroups };
