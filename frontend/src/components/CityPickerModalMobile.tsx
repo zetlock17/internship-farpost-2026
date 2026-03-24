@@ -3,8 +3,6 @@ import {
     useState,
     useMemo,
     useCallback,
-    useEffect,
-    useRef,
     type ChangeEvent,
     type RefObject,
 } from 'react';
@@ -13,6 +11,7 @@ import searchIconSrc from '../assets/search.svg';
 import arrowLeftIconSrc from '../assets/arrowCountry.svg';
 import crossIconSrc from '../assets/cross.svg';
 import crossIconMobileSrc from '../assets/crossCloseMobile.svg';
+import { useMobileBackGesture } from '../hooks/useMobileBackGesture';
 import {
     type GeoNode,
     type SearchCity,
@@ -37,30 +36,6 @@ type MobileStep = 'countries' | 'districts' | 'regions' | 'cities';
 
 type Variant = 'desktop' | 'mobile';
 
-interface SearchResultItemProps {
-    city: SearchCity;
-    onSelect: (city: SearchCity) => void;
-    variant?: Variant;
-}
-
-const SearchResultItem = memo(function SearchResultItem({ city, onSelect, variant = 'desktop' }: SearchResultItemProps) {
-    const handleClick = useCallback(() => {
-        onSelect(city);
-    }, [city, onSelect]);
-
-    return (
-        <CitySelector
-            cityName={city.cityName}
-            regionName={city.regionName}
-            displayMode="search-result"
-            variant={variant}
-            bold={city.count > 30000}
-            onClick={handleClick}
-            className="w-full"
-        />
-    );
-});
-
 interface SearchResultsListProps {
     results: SearchCity[];
     onSelect: (city: SearchCity) => void;
@@ -75,91 +50,18 @@ const SearchResultsList = memo(function SearchResultsList({ results, onSelect, v
     return (
         <div className="flex flex-col gap-3">
             {results.map((city) => (
-                <SearchResultItem key={city.cityId} city={city} onSelect={onSelect} variant={variant} />
+                <CitySelector
+                    key={city.cityId}
+                    cityName={city.cityName}
+                    regionName={city.regionName}
+                    displayMode="search-result"
+                    variant={variant}
+                    bold={city.count > 30000}
+                    onClick={() => onSelect(city)}
+                    className="w-full"
+                />
             ))}
         </div>
-    );
-});
-
-interface RegionCityItemProps {
-    city: GeoNode;
-    regionName: string;
-    showFirstLetter?: boolean;
-    onSelect: (city: GeoNode) => void;
-    variant?: Variant;
-    selectedCityId?: number | null;
-}
-
-const RegionCityItem = memo(function RegionCityItem({
-    city,
-    regionName,
-    showFirstLetter,
-    onSelect,
-    variant = 'desktop',
-    selectedCityId,
-}: RegionCityItemProps) {
-    const handleClick = useCallback(() => {
-        onSelect(city);
-    }, [city, onSelect]);
-
-    return (
-        <CitySelector
-            cityName={city.name}
-            regionName={regionName}
-            showFirstLetter={showFirstLetter}
-            displayMode="default"
-            variant={variant}
-            bold={(city.count ?? 0) > 30000}
-            selected={selectedCityId === city.id}
-            onClick={handleClick}
-            className="w-full"
-        />
-    );
-});
-
-interface CountryItemProps {
-    country: GeoNode;
-    onSelect: (countryId: number) => void;
-    selectedCountryId: number;
-}
-
-const CountryItem = memo(function CountryItem({ country, onSelect, selectedCountryId }: CountryItemProps) {
-    const handleClick = useCallback(() => {
-        onSelect(country.id);
-    }, [country.id, onSelect]);
-
-    return (
-        <CitySelector
-            cityName={country.name}
-            variant="mobile"
-            displayMode="default"
-            selected={selectedCountryId === country.id}
-            onClick={handleClick}
-            className="w-full"
-        />
-    );
-});
-
-interface MobileRegionItemProps {
-    region: GeoNode;
-    onSelect: (regionId: number) => void;
-    selected?: boolean;
-}
-
-const MobileRegionItem = memo(function MobileRegionItem({ region, onSelect, selected = false }: MobileRegionItemProps) {
-    const handleClick = useCallback(() => {
-        onSelect(region.id);
-    }, [region.id, onSelect]);
-
-    return (
-        <CitySelector
-            cityName={region.name}
-            variant="mobile"
-            displayMode="default"
-            selected={selected}
-            onClick={handleClick}
-            className="w-full"
-        />
     );
 });
 
@@ -185,13 +87,16 @@ const RegionCitiesList = memo(function RegionCitiesList({
             {popularCities.length > 0 && (
                 <div className="flex flex-col mb-5">
                     {popularCities.map((city) => (
-                        <RegionCityItem
+                        <CitySelector
                             key={city.id}
-                            city={city}
+                            cityName={city.name}
                             regionName={regionName}
-                            onSelect={onSelect}
+                            displayMode="default"
                             variant={variant}
-                            selectedCityId={selectedCityId}
+                            bold={(city.count ?? 0) > 30000}
+                            selected={selectedCityId === city.id}
+                            onClick={() => onSelect(city)}
+                            className="w-full"
                         />
                     ))}
                 </div>
@@ -202,14 +107,17 @@ const RegionCitiesList = memo(function RegionCitiesList({
             {cityGroups.map(([letter, letterCities]) => (
                 <div key={letter} className="flex flex-col gap-0.5 mb-1">
                     {letterCities.map((city, index) => (
-                        <RegionCityItem
+                        <CitySelector
                             key={city.id}
-                            city={city}
+                            cityName={city.name}
                             regionName={regionName}
                             showFirstLetter={index === 0}
-                            onSelect={onSelect}
+                            displayMode="default"
                             variant={variant}
-                            selectedCityId={selectedCityId}
+                            bold={(city.count ?? 0) > 30000}
+                            selected={selectedCityId === city.id}
+                            onClick={() => onSelect(city)}
+                            className="w-full"
                         />
                     ))}
                 </div>
@@ -351,10 +259,6 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
 }: CityPickerModalMobileProps) {
     const [mobileStepOverride, setMobileStepOverride] = useState<MobileStep | null>(null);
     const [selectedMobileDistrictIdState, setSelectedMobileDistrictIdState] = useState<number | null>(null);
-    const hasModalHistoryEntryRef = useRef(false);
-    const shouldIgnoreNextPopStateRef = useRef(false);
-    const mobileStepRef = useRef<MobileStep>('countries');
-    const isSearchingRef = useRef(isSearching);
     const mobileStep = useMemo<MobileStep>(() => {
         if (mobileStepOverride !== null) {
             return mobileStepOverride;
@@ -367,26 +271,6 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
         return selectedRegion ? 'cities' : 'regions';
     }, [mobileStepOverride, selectedDistrictId, selectedRegion]);
     const selectedMobileDistrictId = selectedMobileDistrictIdState ?? selectedDistrictId;
-
-    const pushModalHistoryEntry = useCallback(() => {
-        window.history.pushState(
-            {
-                [MOBILE_MODAL_HISTORY_STATE_KEY]: true,
-            },
-            '',
-            window.location.href,
-        );
-
-        hasModalHistoryEntryRef.current = true;
-    }, []);
-
-    useEffect(() => {
-        mobileStepRef.current = mobileStep;
-    }, [mobileStep]);
-
-    useEffect(() => {
-        isSearchingRef.current = isSearching;
-    }, [isSearching]);
 
     const mobileRegionsForSelectedDistrict = useMemo(() => {
         if (selectedMobileDistrictId === null) return [];
@@ -415,44 +299,16 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
         setMobileStepOverride((currentStep) => getPreviousMobileStep(currentStep ?? mobileStep));
     }, [mobileStep]);
 
-    const syncHistoryEntryBeforeClose = useCallback(() => {
-        if (hasModalHistoryEntryRef.current) {
-            shouldIgnoreNextPopStateRef.current = true;
-            hasModalHistoryEntryRef.current = false;
-            window.history.back();
-        }
-    }, []);
-
-    const closeWithHistorySync = useCallback(() => {
-        syncHistoryEntryBeforeClose();
-        onClose();
-    }, [onClose, syncHistoryEntryBeforeClose]);
-
-    useEffect(() => {
-        pushModalHistoryEntry();
-
-        const onPopState = () => {
-            if (shouldIgnoreNextPopStateRef.current) {
-                shouldIgnoreNextPopStateRef.current = false;
-                return;
-            }
-
-            if (mobileStepRef.current === 'countries' || isSearchingRef.current) {
-                hasModalHistoryEntryRef.current = false;
-                onClose();
-                return;
-            }
-
-            setMobileStepOverride((currentStep) => getPreviousMobileStep(currentStep ?? mobileStepRef.current));
-            pushModalHistoryEntry();
-        };
-
-        window.addEventListener('popstate', onPopState);
-
-        return () => {
-            window.removeEventListener('popstate', onPopState);
-        };
-    }, [onClose, pushModalHistoryEntry]);
+    const { syncHistoryEntryBeforeClose, closeWithHistorySync } = useMobileBackGesture<MobileStep>({
+        currentStep: mobileStep,
+        isSearching,
+        isRootStep: (step) => step === 'countries',
+        onStepBack: (currentStep) => {
+            setMobileStepOverride((nextStep) => getPreviousMobileStep(nextStep ?? currentStep));
+        },
+        onClose,
+        historyStateKey: MOBILE_MODAL_HISTORY_STATE_KEY,
+    });
 
     const handleSearchResultSelectWithHistorySync = useCallback((city: SearchCity) => {
         syncHistoryEntryBeforeClose();
@@ -488,11 +344,14 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                 ) : mobileStep === 'countries' ? (
                     <div className="flex flex-col">
                         {allCountries.map((country) => (
-                            <CountryItem
+                            <CitySelector
                                 key={country.id}
-                                country={country}
-                                onSelect={handleMobileCountrySelect}
-                                selectedCountryId={selectedCountryId}
+                                cityName={country.name}
+                                variant="mobile"
+                                displayMode="default"
+                                selected={selectedCountryId === country.id}
+                                onClick={() => handleMobileCountrySelect(country.id)}
+                                className="w-full"
                             />
                         ))}
                     </div>
@@ -501,11 +360,14 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                         <MobileBackButton onClick={handleMobileBack} />
                         <div className="flex flex-col">
                             {districts.map((district) => (
-                                <MobileRegionItem
+                                <CitySelector
                                     key={district.id}
-                                    region={district}
-                                    onSelect={handleMobileDistrictSelect}
+                                    cityName={district.name}
+                                    variant="mobile"
+                                    displayMode="default"
                                     selected={selectedMobileDistrictId === district.id}
+                                    onClick={() => handleMobileDistrictSelect(district.id)}
+                                    className="w-full"
                                 />
                             ))}
                         </div>
@@ -515,11 +377,14 @@ export const CityPickerModalMobile = memo(function CityPickerModalMobile({
                         <MobileBackButton onClick={handleMobileBack} />
                         <div className="flex flex-col">
                             {mobileRegionsForSelectedDistrict.map((region) => (
-                                <MobileRegionItem
+                                <CitySelector
                                     key={region.id}
-                                    region={region}
-                                    onSelect={handleMobileRegionSelect}
+                                    cityName={region.name}
+                                    variant="mobile"
+                                    displayMode="default"
                                     selected={selectedRegion?.id === region.id}
+                                    onClick={() => handleMobileRegionSelect(region.id)}
+                                    className="w-full"
                                 />
                             ))}
                         </div>
