@@ -1,4 +1,14 @@
 # Farpost Internship 2026 by Alexey Krygin
+
+## Что сделано?
+- фронт на React
+- бэк на FastAPI
+- жесты для мобилок
+- выбор страны на всех устройствах
+- тесты фронта
+- стили Tailwind
+- стейтменеджер Zustand
+- докер
   
 ## Запуск
 
@@ -44,6 +54,15 @@ uvicorn main:app --reload # Запуск на http://localhost:8000
 # Документация: http://localhost:8000/docs
 
 ```
+
+
+**Frontend's tests**
+
+``` Тесты
+npm run test # Запуск в режиме watch
+npm run test:run # Одноразовый прогон
+```
+
 
 ### Утилиты
 
