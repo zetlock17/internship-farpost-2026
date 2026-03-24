@@ -61,7 +61,7 @@ uvicorn main:app --reload # Запуск на http://localhost:8000
 
 **Frontend's tests**
 
-``` Тесты
+```bash
 npm run test # Запуск в режиме watch
 npm run test:run # Одноразовый прогон
 ```
